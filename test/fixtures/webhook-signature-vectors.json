@@ -1,0 +1,122 @@
+{
+    "algorithm": "The X-Byomailer-Signature header is \"sha256=\" and the lowercase hex HMAC-SHA256 of the signed payload. The signed payload is the X-Byomailer-Timestamp value, a dot and the raw request body. The key is the full endpoint secret, with its \"whsec_\" prefix. Compare in constant time. Reject a timestamp that is more than tolerance_seconds before or after now.",
+    "headers": {
+        "signature": "X-Byomailer-Signature",
+        "timestamp": "X-Byomailer-Timestamp",
+        "event": "X-Byomailer-Event",
+        "delivery": "X-Byomailer-Delivery"
+    },
+    "tolerance_seconds": 300,
+    "cases": [
+        {
+            "name": "test delivery",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"webhook.test\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"message\":\"This is a test delivery from BYOMailer.\"}",
+            "signed_payload": "1763460000.{\"event\":\"webhook.test\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"message\":\"This is a test delivery from BYOMailer.\"}",
+            "signature": "sha256=2bbcce6a57f70cc24e7302fd45fe31785c1fa002cdc0e8d2da3385b5710a65f6",
+            "now": 1763460030,
+            "valid": true,
+            "reason": null
+        },
+        {
+            "name": "contact subscribed, with unicode and a URL attribute",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"contact.subscribed\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"contact\":{\"company\":\"Caf\\u00e9 \\u00d1and\\u00fa\",\"website\":\"https://example.com/a/b?x=1&y=2\",\"id\":42,\"uuid\":\"9b2f6c1e-4a7d-4f3b-8c55-0d6e2a1b3c4d\",\"email\":\"ana@example.com\",\"name\":\"Ana P\\u00e9rez \\ud83c\\udf89\"}}",
+            "signed_payload": "1763460000.{\"event\":\"contact.subscribed\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"contact\":{\"company\":\"Caf\\u00e9 \\u00d1and\\u00fa\",\"website\":\"https://example.com/a/b?x=1&y=2\",\"id\":42,\"uuid\":\"9b2f6c1e-4a7d-4f3b-8c55-0d6e2a1b3c4d\",\"email\":\"ana@example.com\",\"name\":\"Ana P\\u00e9rez \\ud83c\\udf89\"}}",
+            "signature": "sha256=288fcfa7c89d707b60dbb9e05be7d1d0c26d57ef17af0780991bb543bab12624",
+            "now": 1763460030,
+            "valid": true,
+            "reason": null
+        },
+        {
+            "name": "newsletter sent",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460000.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "sha256=3a7d8c5736e053fa347ae323c26f9ca3ba547f97db6428089207bb2d9a172309",
+            "now": 1763460030,
+            "valid": true,
+            "reason": null
+        },
+        {
+            "name": "sequence step sent",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"sequence_step.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"contact\":{\"id\":42,\"uuid\":\"9b2f6c1e-4a7d-4f3b-8c55-0d6e2a1b3c4d\",\"email\":\"ana@example.com\",\"name\":null},\"sequence\":{\"id\":3,\"name\":\"Welcome\"},\"sequence_step\":{\"id\":11}}",
+            "signed_payload": "1763460000.{\"event\":\"sequence_step.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"contact\":{\"id\":42,\"uuid\":\"9b2f6c1e-4a7d-4f3b-8c55-0d6e2a1b3c4d\",\"email\":\"ana@example.com\",\"name\":null},\"sequence\":{\"id\":3,\"name\":\"Welcome\"},\"sequence_step\":{\"id\":11}}",
+            "signature": "sha256=5ea27ff12cb86e877c74c957f9f30277bf52cfe9b5efda540800ff120bfd9296",
+            "now": 1763460030,
+            "valid": true,
+            "reason": null
+        },
+        {
+            "name": "body changed after signing",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"December news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460000.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"December news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "sha256=3a7d8c5736e053fa347ae323c26f9ca3ba547f97db6428089207bb2d9a172309",
+            "now": 1763460030,
+            "valid": false,
+            "reason": "signature"
+        },
+        {
+            "name": "signed with another secret",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460000.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "sha256=0f6e2aa83be70a0eb15189b2f453a807476aaac56a15137af0cebed7f889f5f4",
+            "now": 1763460030,
+            "valid": false,
+            "reason": "signature"
+        },
+        {
+            "name": "timestamp changed after signing",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460001",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460001.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "sha256=3a7d8c5736e053fa347ae323c26f9ca3ba547f97db6428089207bb2d9a172309",
+            "now": 1763460001,
+            "valid": false,
+            "reason": "signature"
+        },
+        {
+            "name": "signature without the sha256= prefix",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460000.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "3a7d8c5736e053fa347ae323c26f9ca3ba547f97db6428089207bb2d9a172309",
+            "now": 1763460030,
+            "valid": false,
+            "reason": "signature"
+        },
+        {
+            "name": "timestamp older than the tolerance",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460000.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "sha256=3a7d8c5736e053fa347ae323c26f9ca3ba547f97db6428089207bb2d9a172309",
+            "now": 1763460301,
+            "valid": false,
+            "reason": "timestamp"
+        },
+        {
+            "name": "timestamp newer than the tolerance",
+            "secret": "whsec_test0123456789abcdefghijklmnopqrstuvwxyz",
+            "timestamp": "1763460000",
+            "body": "{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signed_payload": "1763460000.{\"event\":\"newsletter.sent\",\"occurred_at\":\"2025-11-18T10:00:00+00:00\",\"newsletter\":{\"id\":7,\"uuid\":\"1c0d8e2f-3b4a-4c5d-9e6f-7a8b9c0d1e2f\",\"title\":\"November news\",\"sent_at\":\"2025-11-18T09:59:58+00:00\"}}",
+            "signature": "sha256=3a7d8c5736e053fa347ae323c26f9ca3ba547f97db6428089207bb2d9a172309",
+            "now": 1763459699,
+            "valid": false,
+            "reason": "timestamp"
+        }
+    ]
+}
