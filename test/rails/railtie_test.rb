@@ -24,7 +24,7 @@ class Byomailer::WebhookControllerTest < ActionDispatch::IntegrationTest
     post "/webhooks/byomailer", params: body, headers: signed_headers(body)
 
     assert_response :success
-    assert_equal "contact.subscribed", response.parsed_body["event"]
+    assert_equal "contact.subscribed", response.body
   end
 
   test "a controller rejects a body that changed after signing" do
@@ -33,7 +33,7 @@ class Byomailer::WebhookControllerTest < ActionDispatch::IntegrationTest
     post "/webhooks/byomailer", params: body.sub("subscribed", "unsubscribed"), headers: signed_headers(body)
 
     assert_response :bad_request
-    assert_equal "signature", response.parsed_body["reason"]
+    assert_equal "signature", response.body
   end
 
   private
