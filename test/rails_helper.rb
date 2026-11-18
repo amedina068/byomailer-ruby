@@ -44,7 +44,8 @@ class ByomailerWebhooksController < ActionController::API
     event = Byomailer::Webhook.verify(request.raw_post, request.headers)
     render json: { event: event.event }
   rescue Byomailer::WebhookVerificationError => error
-    render json: { reason: error.reason }, status: :bad_request
+    # ActiveSupport 8.0 with json 3.x cannot render a Symbol, so send a String.
+    render json: { reason: error.reason.to_s }, status: :bad_request
   end
 end
 
