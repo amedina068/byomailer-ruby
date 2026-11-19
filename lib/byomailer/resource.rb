@@ -16,13 +16,13 @@ module Byomailer
       def patch(path, **options)  = client.request(:patch, path, **options).body
       def delete(path, **options) = client.request(:delete, path, **options).body
 
-      def record(body) = Record.wrap(body["data"])
+      def record(body, as: Record) = as.wrap(body["data"])
 
       # A cursor list. Each next page keeps the query and changes only the cursor.
-      def page(path, cursor: nil, **query)
+      def page(path, as: Record, cursor: nil, **query)
         body = get(path, query: { **query, cursor: }.compact)
 
-        Page.new(body["data"], body["meta"]) { |next_cursor| page(path, **query, cursor: next_cursor) }
+        Page.new(body["data"], body["meta"], as:) { |next_cursor| page(path, as:, **query, cursor: next_cursor) }
       end
   end
 end

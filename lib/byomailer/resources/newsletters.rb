@@ -29,7 +29,8 @@ module Byomailer
     # The limit is 5 requests a minute.
     def send_test_email(id) = Record.wrap(post("/newsletters/#{id}/test-mail"))
 
-    # Sends variant "a" or "b" to the rest of the audience of an A/B test.
+    # Stores variant "a" or "b" as the winner of an A/B test. Each half of the
+    # audience already got one variant, so BYOMailer sends no more email.
     def pick_winner(id, variant)
       record(post("/newsletters/#{id}/ab-winner", json: { winner_variant: variant.to_s }))
     end

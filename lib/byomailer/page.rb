@@ -13,8 +13,8 @@ module Byomailer
 
     attr_reader :records, :meta
 
-    def initialize(records, meta, &next_page)
-      @records = Record.wrap(records || [])
+    def initialize(records, meta, as: Record, &next_page)
+      @records = as.wrap(records || [])
       @meta = Record.wrap(meta || {})
       @next_page = next_page
     end

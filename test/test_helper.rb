@@ -37,7 +37,9 @@ module Byomailer
 
     # A cursor page, like a Laravel cursorPaginate response.
     def cursor_page(data, next_cursor: nil)
-      json(data:, links: {}, meta: { path: "#{URL}/api/v1", per_page: 25, next_cursor:, prev_cursor: nil })
+      links = { first: nil, last: nil, prev: nil, next: next_cursor && "#{URL}/api/v1?cursor=#{next_cursor}" }
+
+      json(data:, links:, meta: { path: "#{URL}/api/v1", per_page: 25, next_cursor:, prev_cursor: nil })
     end
   end
 end

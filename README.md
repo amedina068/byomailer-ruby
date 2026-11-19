@@ -94,12 +94,28 @@ Byomailer.contacts.find(42)
 Byomailer.contacts.add("ana@example.com", list: 3, name: "Ana", tags: ["vip"], attributes: { plan: "pro" })
 Byomailer.contacts.update(42, name: "Ana P.", remove_tags: ["trial"], attributes: { plan: "team" })
 Byomailer.contacts.unsubscribe(42)
+Byomailer.contacts.subscribe(42)
 Byomailer.contacts.remove(42, list: 3)
 ```
 
 `add` returns a `Byomailer::Contacts::Added`. `created?` is `true` when the API made a new contact (HTTP 201), and `false` when it updated an existing contact (HTTP 200).
 
-`update` sends only the fields that you give. `tags` adds tags, and `remove_tags` removes tags. To clear the name, send `name: ""`.
+If an admin unsubscribed the contact, `add` subscribes the contact again. An unsubscribe that the contact made through an email link stays. On an opt-in list, the contact gets the opt-in email only when the contact is new on the list.
+
+`update` sends only the fields that you give. `tags` adds tags, and `remove_tags` removes tags. To clear the name, send `name: ""`. An update never changes the subscription.
+
+`subscribe` clears an unsubscribe that an admin or the API made. A subscribed contact does not change. In two cases, `subscribe` raises `Byomailer::ValidationError`:
+
+```ruby
+begin
+  Byomailer.contacts.subscribe(42)
+rescue Byomailer::ValidationError => error
+  error.errors["contact"]   # The contact unsubscribed through an email link.
+  error.errors["email"]     # The email address is blacklisted.
+end
+```
+
+Only the contact can undo an unsubscribe that the contact made through an email link.
 
 ### Lists, topics and tags
 
@@ -145,12 +161,12 @@ CAUTION: `status: "live"` schedules a real send. A `scheduled_at` in the past or
 
 `delete` deletes a draft only. A newsletter with another status raises `Byomailer::ValidationError`.
 
-`send_test_email` sends the newsletter to the email address of the token user. `pick_winner` sends variant `"a"` or `"b"` to the rest of the audience of an A/B test.
+`send_test_email` sends the newsletter to the email address of the token user. `pick_winner` stores variant `"a"` or `"b"` as the winner of an A/B test. Each half of the audience already got one variant, so BYOMailer sends no more email. The newsletter gets the status `sent`, and the `newsletter.sent` webhook event fires one time.
 
 ### Sequences
 
 ```ruby
-Byomailer.sequences.list(status: "live")
+Byomailer.sequences.list(status: "live")   # status is "draft", "live" or "paused"
 Byomailer.sequences.find(3)
 Byomailer.sequences.stats(3)
 Byomailer.sequences.step(3, 11)
@@ -160,6 +176,8 @@ Byomailer.sequences.variables(3)
 Byomailer.sequences.replace_variables(3, plan: "free")
 ```
 
+`list` returns a page of `Byomailer::SequenceSummary` records. A summary has `id`, `name`, `status`, `steps_count`, `contacts_count`, `completed_count`, `active_count` and `project_ids`. `find` returns a `Byomailer::Sequence`, with the same fields and also `steps`, `segment_id`, `filters`, `content_variables` and `created_at`.
+
 `export_step_mails` returns the CSV text of the mails of one step. The keyword arguments filter the rows:
 
 ```ruby
@@ -167,7 +185,7 @@ csv = Byomailer.sequences.export_step_mails(3, 11, status: "bounced", sent_after
 File.write("bounced.csv", csv)
 ```
 
-The filters are `contact_id`, `status`, `filter`, `search`, `sent_after`, `sent_before`, `sort`, `direction` and `current_only`.
+The filters are `contact_id`, `status`, `filter`, `search`, `sent_after`, `sent_before`, `sort` and `direction`. The export always has the full history of the step. `current_only` is deprecated. The gem does not send it, and gives a Ruby deprecation warning.
 
 ### Blocks and email templates
 
@@ -285,6 +303,8 @@ post "/webhooks/byomailer", params: body, headers: {
 
 The events are `contact.subscribed`, `contact.unsubscribed`, `contact.resubscribed`, `newsletter.sent`, `sequence_step.sent`, `sequence.completed` and `webhook.test`. Each payload has `event` and `occurred_at`. The app can add events, so `verify` accepts other event names too. `Byomailer::Webhook::EVENTS` lists the known events.
 
+`newsletter.sent` fires one time for each newsletter. For an A/B test, it fires when you pick the winner.
+
 ## Errors
 
 Each error is a `Byomailer::Error`.
@@ -320,7 +340,7 @@ The client retries these failures, up to `max_retries` times:
 - A connection error before the request reached the server, for each request.
 - HTTP 5xx and a timeout after the request was sent, for an idempotent request only.
 
-`GET`, `PATCH` and `DELETE` requests are idempotent. A `POST` is not, so the client does not send it again after a 5xx. Two `POST` requests are exceptions: `contacts.unsubscribe` and `newsletters.count_recipients` change nothing on a second call.
+`GET`, `PATCH` and `DELETE` requests are idempotent. A `POST` is not, so the client does not send it again after a 5xx. Three `POST` requests are exceptions: `contacts.unsubscribe`, `contacts.subscribe` and `newsletters.count_recipients` change nothing on a second call.
 
 The wait before each retry grows: 0.5, 1, 2, 4 and 8 seconds at most. The client adds random jitter, and waits between half and all of each value.
 

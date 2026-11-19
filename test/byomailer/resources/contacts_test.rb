@@ -49,6 +49,38 @@ class Byomailer::ContactsTest < Byomailer::TestCase
     assert_equal "2026-11-18T10:00:00.000000Z", client.contacts.unsubscribe(42).unsubscribed_at
   end
 
+  def test_subscribe
+    stub_api(:post, "/contacts/42/subscribe").to_return(json(data: CONTACT.merge(unsubscribed_at: nil)))
+
+    assert_nil client.contacts.subscribe(42).unsubscribed_at
+  end
+
+  def test_subscribe_is_safe_to_retry
+    stub = stub_api(:post, "/contacts/42/subscribe").to_return(json({}, status: 503)).then.to_return(json(data: CONTACT))
+
+    client.contacts.subscribe(42)
+
+    assert_requested stub, times: 2
+  end
+
+  def test_subscribe_refuses_a_contact_that_unsubscribed_through_an_email_link
+    message = "The contact unsubscribed through an email link. Only the contact can subscribe again."
+    stub_api(:post, "/contacts/42/subscribe").to_return(json({ message:, errors: { contact: [ message ] } }, status: 422))
+
+    error = assert_raises(Byomailer::ValidationError) { client.contacts.subscribe(42) }
+
+    assert_equal [ message ], error.errors["contact"]
+  end
+
+  def test_subscribe_refuses_a_blacklisted_email
+    message = "This email address has been blacklisted."
+    stub_api(:post, "/contacts/42/subscribe").to_return(json({ message:, errors: { email: [ message ] } }, status: 422))
+
+    error = assert_raises(Byomailer::ValidationError) { client.contacts.subscribe(42) }
+
+    assert_equal [ message ], error.errors["email"]
+  end
+
   def test_remove_from_a_list
     stub = stub_api(:delete, "/lists/3/contacts/42").to_return(json(data: CONTACT))
 

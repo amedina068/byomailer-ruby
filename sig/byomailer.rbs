@@ -4,6 +4,7 @@ module Byomailer
   type id = Integer | String
   type attributes = Hash[Symbol | String, untyped]
   type filters = Array[Hash[Symbol | String, untyped]]
+  type sequence_status = "draft" | "live" | "paused"
 
   def self.configure: () { (Configuration) -> void } -> void
   def self.config: () -> Configuration
@@ -80,19 +81,46 @@ module Byomailer
     def ==: (untyped other) -> bool
   end
 
-  class Page
-    include Enumerable[Record]
+  class Page[R < Record]
+    include Enumerable[R]
 
-    attr_reader records: Array[Record]
+    attr_reader records: Array[R]
     attr_reader meta: Record
 
-    def initialize: (Array[untyped]? records, Hash[String, untyped]? meta) { (String cursor) -> Page } -> void
-    def each: () { (Record) -> void } -> Array[Record]
+    def initialize: (Array[untyped]? records, Hash[String, untyped]? meta, ?as: singleton(Record)) { (String cursor) -> Page[R] } -> void
+    def each: () { (R) -> void } -> Array[R]
     def next_cursor: () -> String?
     def next_page?: () -> bool
-    def next_page: () -> Page?
-    def each_record: () { (Record) -> void } -> void
-                   | () -> Enumerator[Record, void]
+    def next_page: () -> Page[R]?
+    def each_record: () { (R) -> void } -> void
+                   | () -> Enumerator[R, void]
+  end
+
+  class SequenceSummary < Record
+    def id: () -> Integer
+    def name: () -> String
+    def status: () -> sequence_status
+    def steps_count: () -> Integer
+    def contacts_count: () -> Integer
+    def completed_count: () -> Integer
+    def active_count: () -> Integer
+    def project_ids: () -> Array[Integer]
+  end
+
+  class Sequence < Record
+    def id: () -> Integer
+    def name: () -> String
+    def status: () -> sequence_status
+    def steps_count: () -> Integer
+    def contacts_count: () -> Integer
+    def completed_count: () -> Integer
+    def active_count: () -> Integer
+    def steps: () -> Array[Record]
+    def segment_id: () -> Integer?
+    def filters: () -> Array[Record]
+    def content_variables: () -> Record
+    def created_at: () -> String?
+    def project_ids: () -> Array[Integer]
   end
 
   class Error < StandardError
@@ -161,16 +189,17 @@ module Byomailer
       def created?: () -> bool
     end
 
-    def list: (?lists: Array[id]?, ?tags: Array[id]?, ?topics: Array[id]?, ?search: String?, ?include_unsubscribed: bool?, ?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?lists: Array[id]?, ?tags: Array[id]?, ?topics: Array[id]?, ?search: String?, ?include_unsubscribed: bool?, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
     def add: (String email, list: id, ?name: String?, ?tags: Array[String]?, ?attributes: attributes) -> Added
     def update: (id id, ?email: String?, ?name: String?, ?tags: Array[String]?, ?remove_tags: Array[String]?, ?attributes: attributes) -> Record
     def unsubscribe: (id id) -> Record
+    def subscribe: (id id) -> Record
     def remove: (id id, list: id) -> Record
   end
 
   class Lists < Resource
-    def list: (?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def create: (name: String) -> Record
     def rename: (id id, name: String) -> Record
     def delete: (id id) -> nil
@@ -191,7 +220,7 @@ module Byomailer
   end
 
   class Newsletters < Resource
-    def list: (?status: String?, ?search: String?, ?project: id?, ?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?status: String?, ?search: String?, ?project: id?, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
     def create: (**untyped attributes) -> Record
     def update: (id id, **untyped attributes) -> Record
@@ -204,8 +233,8 @@ module Byomailer
   end
 
   class Sequences < Resource
-    def list: (?status: String?, ?search: String?, ?project: id?, ?per_page: Integer?, ?cursor: String?) -> Page
-    def find: (id id) -> Record
+    def list: (?status: sequence_status?, ?search: String?, ?project: id?, ?per_page: Integer?, ?cursor: String?) -> Page[SequenceSummary]
+    def find: (id id) -> Sequence
     def stats: (id id) -> Record
     def step: (id id, id step_id) -> Record
     def step_stats: (id id, id step_id) -> Record
@@ -224,23 +253,23 @@ module Byomailer
   end
 
   class EmailTemplates < Resource
-    def list: (?archived: bool?, ?is_default: bool?, ?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?archived: bool?, ?is_default: bool?, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
     def default: () -> Record
   end
 
   class EmailIdentities < Resource
-    def list: (?identity_status: String?, ?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?identity_status: String?, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
   end
 
   class EmailLogs < Resource
-    def list: (?status: String?, ?operation: String?, ?recipient: String?, ?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?status: String?, ?operation: String?, ?recipient: String?, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
   end
 
   class Projects < Resource
-    def list: (?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
     def create: (name: String) -> Record
     def rename: (id id, name: String) -> Record
@@ -248,12 +277,12 @@ module Byomailer
   end
 
   class WebhookEndpoints < Resource
-    def list: (?per_page: Integer?, ?cursor: String?) -> Page
+    def list: (?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
     def create: (url: String, events: Array[String], ?description: String?) -> Record
     def update: (id id, **untyped attributes) -> Record
     def delete: (id id) -> nil
-    def deliveries: (id id, ?per_page: Integer?, ?cursor: String?) -> Page
+    def deliveries: (id id, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def rotate_secret: (id id) -> Record
     def send_test: (id id) -> Record
   end

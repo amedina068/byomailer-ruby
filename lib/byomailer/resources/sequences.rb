@@ -1,12 +1,18 @@
 module Byomailer
+  # A sequence in a list: its status and counts, without the steps.
+  class SequenceSummary < Record; end
+
+  # One sequence with its steps, filters and content variables.
+  class Sequence < Record; end
+
   class Sequences < Resource
     # A page of sequences. Live sequences come first, then the others by name.
-    # status is draft, live or paused.
+    # status is "draft", "live" or "paused".
     def list(status: nil, search: nil, project: nil, per_page: nil, cursor: nil)
-      page("/sequences", status:, search:, project:, per_page:, cursor:)
+      page("/sequences", as: SequenceSummary, status:, search:, project:, per_page:, cursor:)
     end
 
-    def find(id) = record(get("/sequences/#{id}"))
+    def find(id) = record(get("/sequences/#{id}"), as: Sequence)
 
     def stats(id) = record(get("/sequences/#{id}/stats"))
 
@@ -30,7 +36,15 @@ module Byomailer
     #
     #   csv = Byomailer.sequences.export_step_mails(3, 11, status: "bounced")
     #   File.write("bounced.csv", csv)
+    #
+    # The export always has the full history of the step. The app ignores
+    # current_only, so the gem does not send it.
     def export_step_mails(id, step_id, **filters)
+      if filters.key?(:current_only)
+        warn "Byomailer: current_only is deprecated. The export always has the full history of the step.", category: :deprecated, uplevel: 1
+        filters = filters.except(:current_only)
+      end
+
       get("/sequences/#{id}/steps/#{step_id}/contact-mails/export", query: filters).to_s
     end
   end
