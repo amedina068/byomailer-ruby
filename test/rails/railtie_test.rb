@@ -27,6 +27,15 @@ class Byomailer::WebhookControllerTest < ActionDispatch::IntegrationTest
     assert_equal "contact.subscribed", response.body
   end
 
+  test "a controller reads the delivery ID from request.headers" do
+    body = %({"event":"contact.subscribed","occurred_at":"2026-11-18T10:00:00+00:00"})
+
+    post "/webhooks/byomailer", params: body, headers: signed_headers(body).merge("X-Byomailer-Delivery" => "5f0c2a8e")
+
+    assert_response :success
+    assert_equal "contact.subscribed 5f0c2a8e", response.body
+  end
+
   test "a controller rejects a body that changed after signing" do
     body = %({"event":"contact.subscribed"})
 

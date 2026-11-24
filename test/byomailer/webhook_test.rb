@@ -6,11 +6,25 @@ class Byomailer::WebhookTest < Byomailer::TestCase
 
   VECTORS["cases"].each do |vector|
     define_method("test_vector_#{vector["name"].gsub(/\W+/, "_")}") do
-      headers = { "X-Byomailer-Timestamp" => vector["timestamp"], "X-Byomailer-Signature" => vector["signature"] }
+      headers = {
+        "X-Byomailer-Timestamp" => vector["timestamp"],
+        "X-Byomailer-Signature" => vector["signature"],
+        "X-Byomailer-Delivery" => vector["delivery"]
+      }.compact
       verify = -> { Byomailer::Webhook.verify(vector["body"], headers, secret: vector["secret"], now: vector["now"]) }
 
       if vector["valid"]
-        assert_equal JSON.parse(vector["body"]), verify.call.to_h
+        event = verify.call
+        payload = JSON.parse(vector["body"])
+
+        assert_equal payload["event"], event.type
+        assert_equal payload, event.payload.to_h
+        assert_equal vector["timestamp"].to_i, event.timestamp
+        if vector["delivery_id"]
+          assert_equal vector["delivery_id"], event.delivery_id
+        else
+          assert_nil event.delivery_id
+        end
       else
         error = assert_raises(Byomailer::WebhookVerificationError) { verify.call }
         assert_equal vector["reason"].to_sym, error.reason
@@ -22,15 +36,31 @@ class Byomailer::WebhookTest < Byomailer::TestCase
     assert_equal VECTORS["tolerance_seconds"], Byomailer::Webhook::TOLERANCE
   end
 
-  def test_returns_a_record
+  def test_returns_an_event_with_the_payload_as_a_record
     event = verify(delivery("contact.subscribed", contact: { email: "ana@example.com" }))
 
-    assert_equal "contact.subscribed", event.event
-    assert_equal "ana@example.com", event.contact.email
+    assert_equal "contact.subscribed", event.type
+    assert_equal "ana@example.com", event.payload.contact.email
+    assert_nil event.delivery_id
+  end
+
+  def test_reads_the_delivery_id
+    body, headers = delivery("webhook.test")
+
+    assert_equal "5f0c2a8e", verify([ body, headers.merge("X-Byomailer-Delivery" => "5f0c2a8e") ]).delivery_id
+    assert_nil verify([ body, headers.merge("X-Byomailer-Delivery" => "") ]).delivery_id
+  end
+
+  def test_the_type_comes_from_the_event_header_when_the_payload_has_no_event
+    body = %({"occurred_at":"2025-11-18T10:00:00+00:00"})
+    timestamp = Time.now.to_i
+    headers = { "X-Byomailer-Event" => "contact.bounced", "X-Byomailer-Timestamp" => timestamp.to_s, "X-Byomailer-Signature" => Byomailer::Webhook.sign(timestamp, body, SECRET) }
+
+    assert_equal "contact.bounced", verify([ body, headers ]).type
   end
 
   def test_accepts_an_unknown_event
-    assert_equal "contact.bounced", verify(delivery("contact.bounced")).event
+    assert_equal "contact.bounced", verify(delivery("contact.bounced")).type
   end
 
   def test_the_tolerance_can_change
@@ -67,6 +97,13 @@ class Byomailer::WebhookTest < Byomailer::TestCase
     assert_equal :signature, error.reason
   end
 
+  def test_a_missing_timestamp_fails_on_the_timestamp
+    headers = { "X-Byomailer-Signature" => "sha256=#{"0" * 64}" }
+    error = assert_raises(Byomailer::WebhookVerificationError) { Byomailer::Webhook.verify("{}", headers, secret: SECRET) }
+
+    assert_equal :timestamp, error.reason
+  end
+
   def test_a_timestamp_that_is_not_a_number_fails_on_the_timestamp
     body = %({"event":"webhook.test"})
     headers = { "X-Byomailer-Timestamp" => "soon", "X-Byomailer-Signature" => Byomailer::Webhook.sign("soon", body, SECRET) }
@@ -80,7 +117,7 @@ class Byomailer::WebhookTest < Byomailer::TestCase
     headers = { "X-Byomailer-Timestamp" => Time.now.to_i.to_s }
     headers["X-Byomailer-Signature"] = Byomailer::Webhook.sign(headers["X-Byomailer-Timestamp"], body, SECRET)
 
-    assert_equal "Café", Byomailer::Webhook.verify(body, headers, secret: SECRET).name
+    assert_equal "Café", Byomailer::Webhook.verify(body, headers, secret: SECRET).payload.name
   end
 
   def test_the_secret_defaults_to_the_configuration

@@ -1,17 +1,17 @@
 module Byomailer
   class Topics < Resource
     # All the topics of a list. This list has no pages.
-    def list(list:) = Record.wrap(get("/lists/#{list}/topics")["data"])
+    def list(list_id) = Record.wrap(get("/lists/#{list_id}/topics")["data"])
 
-    def create(list:, name:, description: nil)
-      record(post("/lists/#{list}/topics", json: { name:, description: }))
+    def create(list_id, name:, description: nil)
+      record(post("/lists/#{list_id}/topics", json: { name:, description: }))
     end
 
     # Replaces the name and the description. A topic without a description gets none.
-    def update(id, list:, name:, description: nil)
-      record(patch("/lists/#{list}/topics/#{id}", json: { name:, description: }))
+    def update(list_id, topic_id, name:, description: nil)
+      record(patch("/lists/#{list_id}/topics/#{topic_id}", json: { name:, description: }, idempotent: true))
     end
 
-    def delete(id, list:) = super("/lists/#{list}/topics/#{id}")
+    def delete(list_id, topic_id) = super("/lists/#{list_id}/topics/#{topic_id}")
   end
 end

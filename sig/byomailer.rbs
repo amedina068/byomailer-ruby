@@ -48,6 +48,7 @@ module Byomailer
 
     BEFORE_SEND: Array[singleton(Exception)]
     AFTER_SEND: Array[singleton(Exception)]
+    IDEMPOTENT_METHODS: Array[Symbol]
     BASE_DELAY: Float
     MAX_DELAY: Integer
     MAX_RETRY_AFTER: Integer
@@ -139,6 +140,7 @@ module Byomailer
     def self.for: (Net::HTTPResponse response) -> ApiError
     def self.class_for: (Integer status) -> singleton(ApiError)
     def initialize: (Net::HTTPResponse response, untyped body) -> void
+    def retry_after: () -> Integer?
   end
 
   class AuthenticationError < ApiError
@@ -158,13 +160,12 @@ module Byomailer
   end
 
   class RateLimitError < ApiError
-    def retry_after: () -> Integer?
   end
 
   class WebhookVerificationError < Error
-    attr_reader reason: :signature | :timestamp
+    attr_reader reason: :signature | :timestamp | :payload
 
-    def initialize: (:signature | :timestamp reason, String message) -> void
+    def initialize: (:signature | :timestamp | :payload reason, String message) -> void
   end
 
   module Webhook
@@ -175,7 +176,16 @@ module Byomailer
     TOLERANCE: Integer
     EVENTS: Array[String]
 
-    def self.verify: (String body, untyped headers, ?secret: String?, ?tolerance: Integer, ?now: Time | Integer) -> Record
+    class Event
+      attr_reader type: String
+      attr_reader payload: untyped
+      attr_reader timestamp: Integer
+      attr_reader delivery_id: String?
+
+      def self.new: (type: String, payload: untyped, timestamp: Integer, delivery_id: String?) -> Event
+    end
+
+    def self.verify: (String body, untyped headers, ?secret: String?, ?tolerance: Integer, ?now: Time | Integer) -> Event
     def self.sign: (String | Integer timestamp, String body, String secret) -> String
   end
 
@@ -191,11 +201,11 @@ module Byomailer
 
     def list: (?lists: Array[id]?, ?tags: Array[id]?, ?topics: Array[id]?, ?search: String?, ?include_unsubscribed: bool?, ?per_page: Integer?, ?cursor: String?) -> Page[Record]
     def find: (id id) -> Record
-    def add: (String email, list: id, ?name: String?, ?tags: Array[String]?, ?attributes: attributes) -> Added
+    def add: (id list_id, String email, ?name: String?, ?tags: Array[String]?, ?attributes: attributes) -> Added
     def update: (id id, ?email: String?, ?name: String?, ?tags: Array[String]?, ?remove_tags: Array[String]?, ?attributes: attributes) -> Record
     def unsubscribe: (id id) -> Record
     def subscribe: (id id) -> Record
-    def remove: (id id, list: id) -> Record
+    def remove_from_list: (id list_id, id contact_id) -> Record
   end
 
   class Lists < Resource
@@ -206,10 +216,10 @@ module Byomailer
   end
 
   class Topics < Resource
-    def list: (list: id) -> Array[Record]
-    def create: (list: id, name: String, ?description: String?) -> Record
-    def update: (id id, list: id, name: String, ?description: String?) -> Record
-    def delete: (id id, list: id) -> nil
+    def list: (id list_id) -> Array[Record]
+    def create: (id list_id, name: String, ?description: String?) -> Record
+    def update: (id list_id, id topic_id, name: String, ?description: String?) -> Record
+    def delete: (id list_id, id topic_id) -> nil
   end
 
   class Tags < Resource
@@ -226,7 +236,7 @@ module Byomailer
     def update: (id id, **untyped attributes) -> Record
     def delete: (id id) -> nil
     def count_recipients: (?filters: filters) -> Integer
-    def send_test_email: (id id) -> Record
+    def send_test: (id id) -> Record
     def pick_winner: (id id, String | Symbol variant) -> Record
     def variables: (id id) -> Record
     def replace_variables: (id id, Hash[Symbol | String, String?]? variables) -> Record

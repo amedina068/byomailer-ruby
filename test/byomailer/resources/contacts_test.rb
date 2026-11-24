@@ -20,7 +20,7 @@ class Byomailer::ContactsTest < Byomailer::TestCase
       .with(body: { company: "Acme", plan: "pro", email: "ana@example.com", name: "Ana", tags: [ "vip" ] })
       .to_return(json({ data: CONTACT }, status: 201))
 
-    contact = client.contacts.add("ana@example.com", list: 3, name: "Ana", tags: [ "vip" ], attributes: { company: "Acme", plan: "pro" })
+    contact = client.contacts.add(3, "ana@example.com", name: "Ana", tags: [ "vip" ], attributes: { company: "Acme", plan: "pro" })
 
     assert_predicate contact, :created?
     assert_equal 42, contact.id
@@ -30,7 +30,7 @@ class Byomailer::ContactsTest < Byomailer::TestCase
   def test_add_an_existing_contact
     stub_api(:post, "/lists/3/contacts").with(body: { email: "ana@example.com" }).to_return(json(data: CONTACT))
 
-    refute_predicate client.contacts.add("ana@example.com", list: 3), :created?
+    refute_predicate client.contacts.add(3, "ana@example.com"), :created?
   end
 
   def test_update_uses_patch_and_sends_only_the_given_fields
@@ -84,7 +84,7 @@ class Byomailer::ContactsTest < Byomailer::TestCase
   def test_remove_from_a_list
     stub = stub_api(:delete, "/lists/3/contacts/42").to_return(json(data: CONTACT))
 
-    assert_equal 42, client.contacts.remove(42, list: 3).id
+    assert_equal 42, client.contacts.remove_from_list(3, 42).id
     assert_requested stub
   end
 end

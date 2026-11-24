@@ -6,7 +6,7 @@ module Byomailer
 
     def create(name:) = record(post("/projects", json: { name: }))
 
-    def rename(id, name:) = record(patch("/projects/#{id}", json: { name: }))
+    def rename(id, name:) = record(patch("/projects/#{id}", json: { name: }, idempotent: true))
 
     # Deletes the project. Its newsletters, sequences and automations stay.
     def delete(id) = super("/projects/#{id}")

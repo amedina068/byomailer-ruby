@@ -5,7 +5,7 @@ module Byomailer
 
     def create(name:) = record(post("/tags", json: { name: }))
 
-    def rename(id, name:) = record(patch("/tags/#{id}", json: { name: }))
+    def rename(id, name:) = record(patch("/tags/#{id}", json: { name: }, idempotent: true))
 
     # Deletes the tag and removes it from each contact.
     def delete(id) = super("/tags/#{id}")

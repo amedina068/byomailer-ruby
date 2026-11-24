@@ -37,7 +37,7 @@ class Byomailer::ErrorsTest < Byomailer::TestCase
       errors: { email: [ "The email field must be a valid email address." ] }
     }, status: 422))
 
-    error = assert_raises(Byomailer::ValidationError) { client.contacts.add("not-an-email", list: 3) }
+    error = assert_raises(Byomailer::ValidationError) { client.contacts.add(3, "not-an-email") }
 
     assert_equal({ "email" => [ "The email field must be a valid email address." ] }, error.errors)
   end
@@ -45,7 +45,7 @@ class Byomailer::ErrorsTest < Byomailer::TestCase
   def test_a_rate_limit_error_has_retry_after
     stub_api(:post, "/newsletters/7/test-mail").to_return(json({ message: "Too Many Attempts." }, status: 429, headers: { "Retry-After" => "42" }))
 
-    error = assert_raises(Byomailer::RateLimitError) { client(max_retries: 0).newsletters.send_test_email(7) }
+    error = assert_raises(Byomailer::RateLimitError) { client(max_retries: 0).newsletters.send_test(7) }
 
     assert_equal 42, error.retry_after
   end

@@ -32,7 +32,7 @@ require "byomailer/client"
 #     config.token = "..."
 #   end
 #
-#   Byomailer.contacts.add("ana@example.com", list: 3, name: "Ana")
+#   Byomailer.contacts.add(3, "ana@example.com", name: "Ana")
 #   Byomailer::Webhook.verify(request.raw_post, request.headers)
 module Byomailer
   class << self

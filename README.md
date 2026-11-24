@@ -5,7 +5,7 @@ A Ruby client for the BYOMailer API, with a Rails integration.
 BYOMailer is a self-hosted app that sends newsletters and email sequences through your Amazon SES account. You run your own BYOMailer instance, so each client talks to the instance URL that you give it. The gem uses the Ruby standard library only. It has no runtime dependencies and sends no telemetry.
 
 ```ruby
-contact = Byomailer.contacts.add("ana@example.com", list: 3, name: "Ana", attributes: { company: "Acme" })
+contact = Byomailer.contacts.add(3, "ana@example.com", name: "Ana", attributes: { company: "Acme" })
 event = Byomailer::Webhook.verify(request.raw_post, request.headers)
 ```
 
@@ -19,7 +19,7 @@ gem "byomailer", github: "amedina068/byomailer-ruby"
 
 Then run `bundle install`.
 
-The gem is not on RubyGems yet.
+The gem is not on RubyGems yet. The repository is private, so Bundler needs read access to it.
 
 ## Quick start
 
@@ -39,7 +39,7 @@ The gem is not on RubyGems yet.
 
    ```ruby
    list = Byomailer.lists.list.first
-   contact = Byomailer.contacts.add("ana@example.com", list: list.id, tags: ["vip"])
+   contact = Byomailer.contacts.add(list.id, "ana@example.com", tags: ["vip"])
    contact.created?   # => true when the email was new
    ```
 
@@ -91,11 +91,11 @@ A key of `attributes` becomes a custom attribute of the contact. The gem sends e
 ```ruby
 Byomailer.contacts.list(lists: [3], tags: [4], topics: [9], search: "ana", include_unsubscribed: true)
 Byomailer.contacts.find(42)
-Byomailer.contacts.add("ana@example.com", list: 3, name: "Ana", tags: ["vip"], attributes: { plan: "pro" })
+Byomailer.contacts.add(3, "ana@example.com", name: "Ana", tags: ["vip"], attributes: { plan: "pro" })
 Byomailer.contacts.update(42, name: "Ana P.", remove_tags: ["trial"], attributes: { plan: "team" })
 Byomailer.contacts.unsubscribe(42)
 Byomailer.contacts.subscribe(42)
-Byomailer.contacts.remove(42, list: 3)
+Byomailer.contacts.remove_from_list(3, 42)   # list 3, contact 42
 ```
 
 `add` returns a `Byomailer::Contacts::Added`. `created?` is `true` when the API made a new contact (HTTP 201), and `false` when it updated an existing contact (HTTP 200).
@@ -125,10 +125,10 @@ Byomailer.lists.create(name: "Customers")
 Byomailer.lists.rename(3, name: "Buyers")
 Byomailer.lists.delete(3)
 
-Byomailer.topics.list(list: 3)
-Byomailer.topics.create(list: 3, name: "Product news", description: "Launches and updates")
-Byomailer.topics.update(7, list: 3, name: "Launches", description: "New products")
-Byomailer.topics.delete(7, list: 3)
+Byomailer.topics.list(3)
+Byomailer.topics.create(3, name: "Product news", description: "Launches and updates")
+Byomailer.topics.update(3, 7, name: "Launches", description: "New products")   # list 3, topic 7
+Byomailer.topics.delete(3, 7)
 
 Byomailer.tags.list
 Byomailer.tags.create(name: "VIP")
@@ -149,7 +149,7 @@ Byomailer.newsletters.create(title: "November news", subject: "News", html_conte
 Byomailer.newsletters.update(7, status: "live", scheduled_at: "2026-12-01T09:00:00Z", email_identity_id: 1)
 Byomailer.newsletters.delete(7)
 Byomailer.newsletters.count_recipients(filters: [{ category: "tags", mode: "any", values: [4] }])   # => 128
-Byomailer.newsletters.send_test_email(7)
+Byomailer.newsletters.send_test(7)
 Byomailer.newsletters.pick_winner(7, "b")
 Byomailer.newsletters.variables(7)
 Byomailer.newsletters.replace_variables(7, first_name: "friend")
@@ -161,7 +161,7 @@ CAUTION: `status: "live"` schedules a real send. A `scheduled_at` in the past or
 
 `delete` deletes a draft only. A newsletter with another status raises `Byomailer::ValidationError`.
 
-`send_test_email` sends the newsletter to the email address of the token user. `pick_winner` stores variant `"a"` or `"b"` as the winner of an A/B test. Each half of the audience already got one variant, so BYOMailer sends no more email. The newsletter gets the status `sent`, and the `newsletter.sent` webhook event fires one time.
+`send_test` sends the newsletter to the email address of the token user. `pick_winner` stores variant `"a"` or `"b"` as the winner of an A/B test. Each half of the audience already got one variant, so BYOMailer sends no more email. The newsletter gets the status `sent`, and the `newsletter.sent` webhook event fires one time.
 
 ### Sequences
 
@@ -261,7 +261,7 @@ To start at a cursor that you saved, give `cursor:` to `list`.
 
 ## Webhook verification
 
-BYOMailer signs each webhook delivery. `Byomailer::Webhook.verify` verifies the signature and the timestamp, and returns the decoded payload.
+BYOMailer signs each webhook delivery. `Byomailer::Webhook.verify` verifies the signature and the timestamp, and returns a `Byomailer::Webhook::Event`.
 
 Verify webhooks on the server only. The endpoint secret is a secret. Never put it in browser code.
 
@@ -270,9 +270,9 @@ class ByomailerWebhooksController < ActionController::API
   def create
     event = Byomailer::Webhook.verify(request.raw_post, request.headers)
 
-    case event.event
-    when "contact.subscribed"   then Subscriber.welcome(event.contact.email)
-    when "contact.unsubscribed" then Subscriber.goodbye(event.contact.email)
+    case event.type
+    when "contact.subscribed"   then Subscriber.welcome(event.payload.contact.email)
+    when "contact.unsubscribed" then Subscriber.goodbye(event.payload.contact.email)
     end
 
     head :ok
@@ -286,7 +286,28 @@ end
 - `headers` can be the Rails `request.headers`, a Rack env, or a Hash.
 - The secret comes from `config.webhook_secret`. To give it directly, pass `secret: "whsec_..."`.
 - The timestamp must be 300 seconds or less before or after the current time. To change this limit, pass `tolerance: 600`.
-- Each problem raises `Byomailer::WebhookVerificationError`. Its `reason` is `:signature` or `:timestamp`.
+- The checks run in this order: the signature header, the timestamp header, the signature, the tolerance and the body. The gem changes the signature header to lowercase, then compares it in constant time.
+
+The event has these fields:
+
+| Field | Description |
+|-------|-------------|
+| `type` | The event type: `event` of the payload, or the `X-Byomailer-Event` header. |
+| `payload` | The decoded JSON body, as a record. |
+| `timestamp` | The Unix time when the instance signed the delivery. |
+| `delivery_id` | The `X-Byomailer-Delivery` header (a UUID). `nil` when the header is missing or empty. |
+
+Use `delivery_id` to ignore a delivery that you received before. An older instance does not send the delivery header. Then the verification passes and `delivery_id` is `nil`.
+
+Each problem raises `Byomailer::WebhookVerificationError`. Its `reason` is:
+
+| `reason` | Cause |
+|----------|-------|
+| `:signature` | The signature header is missing, or the signature does not match the body. |
+| `:timestamp` | The timestamp header is missing, is not a Unix time, or is outside the tolerance. |
+| `:payload` | The signature is valid, but the body is not a JSON object. |
+
+The JS, PHP and Python SDKs give the same fields and the same reasons.
 
 To test your own webhook controller, sign a body with `Byomailer::Webhook.sign`:
 
@@ -326,7 +347,7 @@ Each `ApiError` has `status`, `body` and the `message` from the body.
 
 ```ruby
 begin
-  Byomailer.contacts.add("not-an-email", list: 3)
+  Byomailer.contacts.add(3, "not-an-email")
 rescue Byomailer::ValidationError => error
   error.errors   # => { "email" => ["The email field must be a valid email address."] }
 end
@@ -334,13 +355,22 @@ end
 
 ## Retries
 
-The client retries these failures, up to `max_retries` times:
+The client retries these failures, up to `max_retries` times (2 by default). The timeout of one attempt is 30 seconds. The JS, PHP and Python SDKs use the same values and the same rule.
 
-- HTTP 429, for each request. The client waits for the `Retry-After` value. If `Retry-After` is more than 60 seconds, the client does not retry and raises `RateLimitError`.
-- A connection error before the request reached the server, for each request.
-- HTTP 5xx and a timeout after the request was sent, for an idempotent request only.
+- HTTP 429, for each request. A 429 means that the server did not do the request.
+- A connection error before the send, for each request, also a write that is not idempotent: a DNS failure (`SocketError`), a refused connection or a connect timeout (`Net::OpenTimeout`). The server did not get the request.
+- HTTP 5xx, a read timeout or a reset after the send, for an idempotent request only.
+- If the response has a `Retry-After` header, the client waits for that time. If `Retry-After` is more than 60 seconds, the client does not retry and raises the error.
 
-`GET`, `PATCH` and `DELETE` requests are idempotent. A `POST` is not, so the client does not send it again after a 5xx. Three `POST` requests are exceptions: `contacts.unsubscribe`, `contacts.subscribe` and `newsletters.count_recipients` change nothing on a second call.
+These requests are idempotent:
+
+- Each `GET` and each `DELETE`.
+- `newsletters.count_recipients`, because it only reads.
+- `contacts.update`, `contacts.unsubscribe` and `contacts.subscribe`.
+- `lists.rename`, `tags.rename`, `projects.rename`, `topics.update`, `blocks.update` and `webhook_endpoints.update`.
+- `newsletters.replace_variables`, `sequences.replace_variables` and `sequences.replace_step_filters`.
+
+The other writes are not idempotent. For example, a repeat of `contacts.add` changes `created?` from `true` to `false`. `newsletters.update` with `status: "live"` can start the send, and a repeat then gets a 422. To mark your own call to `request` as idempotent, pass `idempotent: true`.
 
 The wait before each retry grows: 0.5, 1, 2, 4 and 8 seconds at most. The client adds random jitter, and waits between half and all of each value.
 
@@ -349,7 +379,7 @@ Three endpoints have a rate limit:
 | Method | Limit |
 |--------|-------|
 | `newsletters.count_recipients` | 30 requests a minute for each user |
-| `newsletters.send_test_email` | 5 requests a minute for each user |
+| `newsletters.send_test` | 5 requests a minute for each user |
 | `webhook_endpoints.send_test` | 10 requests a minute for each client |
 
 ## Rails
@@ -394,6 +424,10 @@ post "/webhooks/byomailer", to: "byomailer_webhooks#create"
 - Ruby 3.2, 3.3 and 3.4
 - Rails 7.2, 8.0 and 8.1 for the Rails integration. The client works without Rails.
 - BYOMailer API v1
+
+## License
+
+MIT. Read [LICENSE](LICENSE).
 
 ## Development
 

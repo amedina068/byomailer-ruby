@@ -6,7 +6,14 @@ The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The proj
 
 ## [0.2.0] - Unreleased
 
+This release also gives the same behavior as the JS, PHP and Python SDKs.
+
 ### Added
+
+- The MIT license: a `LICENSE` file and `spec.license = "MIT"` in the gemspec.
+- `Byomailer::Webhook::Event`, the result of `Byomailer::Webhook.verify`.
+- The `:payload` reason of `WebhookVerificationError`: the signature is valid, but the body is not a JSON object.
+- `retry_after` on each `ApiError`, so a 503 can give it too.
 
 - `contacts.subscribe` clears an unsubscribe that an admin or the API made. It raises `ValidationError` with `errors["contact"]` when the contact unsubscribed through an email link, and with `errors["email"]` when the address is blacklisted.
 - `Byomailer::SequenceSummary` for the items of `sequences.list`, and `Byomailer::Sequence` for `sequences.find`. A sequence has `steps`, `filters` and `content_variables`.
@@ -14,6 +21,17 @@ The format is [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The proj
 
 ### Changed
 
+- **Breaking:** `Byomailer::Webhook.verify` returns an `Event` with `type`, `payload`, `timestamp` and `delivery_id`. Before, it returned the payload record. Read the payload from `event.payload`. `delivery_id` is `nil` when the `X-Byomailer-Delivery` header is missing.
+- **Breaking:** a missing timestamp header now gives the reason `:timestamp`. Before, it gave `:signature`.
+- **Breaking:** `contacts.add(list_id, email, ...)` takes the list ID first, in place of `list:`.
+- **Breaking:** `contacts.remove(id, list:)` is now `contacts.remove_from_list(list_id, contact_id)`.
+- **Breaking:** the topic methods take the list ID and the topic ID as positional arguments: `topics.list(list_id)`, `topics.create(list_id, name:)`, `topics.update(list_id, topic_id, name:)` and `topics.delete(list_id, topic_id)`.
+- **Breaking:** `newsletters.send_test_email` is now `newsletters.send_test`.
+- **Breaking:** the client no longer retries `newsletters.update` after a 5xx or a timeout, because `status: "live"` can start the send. A `PATCH` is not idempotent by default now. The operations of the idempotent list pass `idempotent: true`.
+- The rule for a connection error before the send did not change: the client retries each request after a DNS failure, a refused connection or a connect timeout. The 12 SDKs of the contract now use this rule.
+- The client waits for `Retry-After` on a 5xx too, not only on a 429.
+- `Byomailer::Webhook.verify` changes the signature header to lowercase before the compare.
+- The README gives the idempotent list and the MIT license.
 - The docs say that `contacts.update` never changes the subscription.
 - The docs say that `contacts.add` subscribes again a contact that an admin unsubscribed. On an opt-in list, only a contact that is new on the list gets the opt-in email.
 - The docs say that `newsletters.pick_winner` sends no more email, and that `newsletter.sent` fires when you pick the winner of an A/B test.

@@ -26,19 +26,19 @@ module Byomailer
     # An unsubscribe that the contact made stays. On an opt-in list, only a
     # contact that is new on the list gets the opt-in email.
     #
-    #   contact = Byomailer.contacts.add("ana@example.com", list: 3, tags: ["vip"], attributes: { company: "Acme" })
+    #   contact = Byomailer.contacts.add(3, "ana@example.com", tags: ["vip"], attributes: { company: "Acme" })
     #   contact.created?
-    def add(email, list:, name: nil, tags: nil, attributes: {})
-      response = client.request(:post, "/lists/#{list}/contacts", json: contact_body(attributes, email:, name:, tags:))
+    def add(list_id, email, name: nil, tags: nil, attributes: {})
+      response = client.request(:post, "/lists/#{list_id}/contacts", json: contact_body(attributes, email:, name:, tags:))
 
       Added.new(response.body["data"], created: response.status == 201)
     end
 
     # Changes only the given fields. tags adds tags, remove_tags removes tags.
     # An update never changes the subscription. To subscribe a contact again,
-    # use subscribe or add.
+    # use subscribe or add. A repeat gives the same contact, so a retry is safe.
     def update(id, email: nil, name: nil, tags: nil, remove_tags: nil, attributes: {})
-      record(patch("/contacts/#{id}", json: contact_body(attributes, email:, name:, tags:, remove_tags:)))
+      record(patch("/contacts/#{id}", json: contact_body(attributes, email:, name:, tags:, remove_tags:), idempotent: true))
     end
 
     # A second call keeps the date of the first unsubscribe, so a retry is safe.
@@ -51,7 +51,7 @@ module Byomailer
     def subscribe(id) = record(post("/contacts/#{id}/subscribe", idempotent: true))
 
     # Removes the contact from one list. The contact stays on its other lists.
-    def remove(id, list:) = record(delete("/lists/#{list}/contacts/#{id}"))
+    def remove_from_list(list_id, contact_id) = record(delete("/lists/#{list_id}/contacts/#{contact_id}"))
 
     private
       # The API reads each unknown top-level field as a custom attribute.

@@ -13,7 +13,8 @@ module Byomailer
     #   Byomailer.newsletters.create(title: "November news", subject: "News", html_content: "<p>Hello</p>")
     def create(**attributes) = record(post("/newsletters", json: attributes))
 
-    # Changes only the given fields of a draft or scheduled newsletter.
+    # Changes only the given fields of a draft or scheduled newsletter. The gem
+    # does not retry it after a 5xx, because status: "live" can start the send.
     def update(id, **attributes) = record(patch("/newsletters/#{id}", json: attributes))
 
     # Deletes a draft. A newsletter with another status raises ValidationError.
@@ -27,7 +28,7 @@ module Byomailer
 
     # Sends the newsletter to the email address of the token user.
     # The limit is 5 requests a minute.
-    def send_test_email(id) = Record.wrap(post("/newsletters/#{id}/test-mail"))
+    def send_test(id) = Record.wrap(post("/newsletters/#{id}/test-mail"))
 
     # Stores variant "a" or "b" as the winner of an A/B test. Each half of the
     # audience already got one variant, so BYOMailer sends no more email.
@@ -42,7 +43,7 @@ module Byomailer
     #
     #   Byomailer.newsletters.replace_variables(7, first_name: "friend")
     def replace_variables(id, variables)
-      record(patch("/newsletters/#{id}/variables", json: { content_variables: variables }))
+      record(patch("/newsletters/#{id}/variables", json: { content_variables: variables }, idempotent: true))
     end
   end
 end

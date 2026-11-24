@@ -42,7 +42,7 @@ end
 class ByomailerWebhooksController < ActionController::API
   def create
     event = Byomailer::Webhook.verify(request.raw_post, request.headers)
-    render plain: event.event
+    render plain: [ event.type, event.delivery_id ].compact.join(" ")
   rescue Byomailer::WebhookVerificationError => error
     render plain: error.reason.to_s, status: :bad_request
   end

@@ -9,7 +9,7 @@ module Byomailer
     def create(name:, html_content:) = record(post("/blocks", json: { name:, html_content: }))
 
     # Replaces the name and the HTML content.
-    def update(id, name:, html_content:) = record(patch("/blocks/#{id}", json: { name:, html_content: }))
+    def update(id, name:, html_content:) = record(patch("/blocks/#{id}", json: { name:, html_content: }, idempotent: true))
 
     def delete(id) = super("/blocks/#{id}")
   end

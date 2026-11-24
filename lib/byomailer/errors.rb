@@ -37,7 +37,18 @@ module Byomailer
     def initialize(response, body)
       @status = response.code.to_i
       @body = body
+      @retry_after = response["Retry-After"]
       super(body.is_a?(Hash) && body["message"] || "BYOMailer returned HTTP #{status}")
+    end
+
+    # The seconds to wait before the next request, from the Retry-After header.
+    # A 429 has it. A 503 can have it.
+    def retry_after
+      return if @retry_after.nil?
+
+      Integer(@retry_after, exception: false) || [ (Time.httpdate(@retry_after) - Time.now).ceil, 0 ].max
+    rescue ArgumentError
+      nil
     end
   end
 
@@ -58,19 +69,5 @@ module Byomailer
     end
   end
 
-  class RateLimitError < ApiError
-    def initialize(response, body)
-      @retry_after = response["Retry-After"]
-      super
-    end
-
-    # The seconds to wait before the next request, from the Retry-After header.
-    def retry_after
-      return if @retry_after.nil?
-
-      Integer(@retry_after, exception: false) || [ (Time.httpdate(@retry_after) - Time.now).ceil, 0 ].max
-    rescue ArgumentError
-      nil
-    end
-  end
+  class RateLimitError < ApiError; end
 end

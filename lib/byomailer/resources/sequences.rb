@@ -22,14 +22,14 @@ module Byomailer
 
     # Replaces the audience filters of one step. An empty Array clears them.
     def replace_step_filters(id, step_id, filters)
-      record(patch("/sequences/#{id}/steps/#{step_id}/filters", json: { filters: }))
+      record(patch("/sequences/#{id}/steps/#{step_id}/filters", json: { filters: }, idempotent: true))
     end
 
     def variables(id) = record(get("/sequences/#{id}/variables"))
 
     # Replaces all the saved defaults.
     def replace_variables(id, variables)
-      record(patch("/sequences/#{id}/variables", json: { content_variables: variables }))
+      record(patch("/sequences/#{id}/variables", json: { content_variables: variables }, idempotent: true))
     end
 
     # Returns the CSV text with one row for each mail of the step.

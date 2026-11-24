@@ -47,10 +47,10 @@ class Byomailer::NewslettersTest < Byomailer::TestCase
     assert_equal 128, client.newsletters.count_recipients(filters: FILTERS)
   end
 
-  def test_send_test_email
+  def test_send_test
     stub_api(:post, "/newsletters/7/test-mail").to_return(json(message: "Test email sent to dev@example.com", sent_to: "dev@example.com"))
 
-    assert_equal "dev@example.com", client.newsletters.send_test_email(7).sent_to
+    assert_equal "dev@example.com", client.newsletters.send_test(7).sent_to
   end
 
   def test_pick_winner

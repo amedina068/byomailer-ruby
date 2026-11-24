@@ -15,7 +15,7 @@ module Byomailer
     end
 
     # Changes the description, or turns the endpoint on or off with active.
-    def update(id, **attributes) = record(patch("/webhook-endpoints/#{id}", json: attributes))
+    def update(id, **attributes) = record(patch("/webhook-endpoints/#{id}", json: attributes, idempotent: true))
 
     def delete(id) = super("/webhook-endpoints/#{id}")
 
