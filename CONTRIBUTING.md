@@ -22,6 +22,22 @@ Open an issue with the bug template or the feature template. If the problem is a
 5. If you change the public API, update `sig/byomailer.rbs`, `README.md` and `CHANGELOG.md`.
 6. Open a pull request and complete the template.
 
+## Pull request titles
+
+The title of each pull request must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). The `PR title` check fails when the title does not follow the format. Examples:
+
+- `feat: add Byomailer.contacts.subscribe`
+- `fix(rails): read the token from the credentials`
+- `docs: add a Rails example to the README`
+
+Use one of these types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore` or `revert`. The scope in parentheses is optional.
+
+GitHub makes the release notes from the titles of the merged pull requests. Write each title for a person who reads the release notes.
+
+## Triage
+
+Each issue form adds a type label and the `needs-triage` label to a new issue. The maintainer reads each new issue, removes `needs-triage` and sets the correct type label: `bug`, `enhancement`, `documentation` or `question`.
+
 ## Rules for the code
 
 - Use the Ruby standard library. Do not add a runtime dependency.
