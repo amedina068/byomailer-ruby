@@ -19,7 +19,7 @@ gem "byomailer", github: "amedina068/byomailer-ruby"
 
 Then run `bundle install`.
 
-The gem is not on RubyGems yet. The repository is private, so Bundler needs read access to it.
+The gem is not on RubyGems yet.
 
 ## Quick start
 
