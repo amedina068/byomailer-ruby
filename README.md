@@ -1,5 +1,8 @@
 # BYOMailer for Ruby
 
+[![CI](https://github.com/amedina068/byomailer-ruby/actions/workflows/ci.yml/badge.svg)](https://github.com/amedina068/byomailer-ruby/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amedina068/byomailer-ruby/badge)](https://scorecard.dev/viewer/?uri=github.com/amedina068/byomailer-ruby)
+
 A Ruby client for the BYOMailer API, with a Rails integration.
 
 BYOMailer is a self-hosted app that sends newsletters and email sequences through your Amazon SES account. You run your own BYOMailer instance, so each client talks to the instance URL that you give it. The gem uses the Ruby standard library only. It has no runtime dependencies and sends no telemetry.

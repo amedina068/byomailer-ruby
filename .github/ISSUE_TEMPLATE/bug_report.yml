@@ -1,0 +1,64 @@
+name: Bug report
+description: Tell us about a problem in the gem.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not put a token, a webhook secret or another secret in this issue.
+        If the problem is about security, do not open an issue. Read SECURITY.md.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Write what the gem did.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Write what the gem must do.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to see the problem
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error
+      description: If the API returned an error, give the error class, the `status` and the `message`.
+      render: text
+  - type: input
+    id: gem-version
+    attributes:
+      label: Gem version
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: ruby-version
+    attributes:
+      label: Ruby version
+      placeholder: "3.4.1"
+    validations:
+      required: true
+  - type: input
+    id: rails-version
+    attributes:
+      label: Rails version
+      description: If you use Rails, give the Rails version.
+      placeholder: "8.0.2"
+  - type: input
+    id: byomailer-version
+    attributes:
+      label: BYOMailer version
+      description: Give the version of your BYOMailer instance, if you know it.
