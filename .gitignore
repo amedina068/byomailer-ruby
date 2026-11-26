@@ -10,3 +10,7 @@ gemfiles/*.lock
 .env.*
 *.key
 REPORT-sdk.md
+
+# Internal notes of the maintainer
+BRIEF.md
+REPORT-*.md
